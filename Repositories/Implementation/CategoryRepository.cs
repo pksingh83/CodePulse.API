@@ -33,6 +33,8 @@ namespace CodePulse.API.Repositories.Implementation
 
             await dbContext.SaveChangesAsync();
 
+            //dbContext.Categories.
+
             return category;
         }
 

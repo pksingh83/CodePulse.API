@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
+using CodePulse.API.Repositories.Implementation;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +66,16 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 
+builder.Services.AddRateLimiter(_ => _
+    .AddFixedWindowLimiter(policyName: "fixed", options =>
+    {
+        options.PermitLimit = 4;
+        options.Window = TimeSpan.FromSeconds(12);
+        options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        options.QueueLimit = 2;
+    }));
+
+
 //builder.WebHost.ConfigureKestrel(options => { options. })
 
 var app = builder.Build();
@@ -81,6 +94,12 @@ else
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+app.UseMiddleware<CustomExceptionHandler>();
+app.UseMiddleware<CustomHeaderMiddleware>();
+
+var blockedIPs = new[] { "127.0.0.1" }; // Add IPs you want to block
+app.UseMiddleware<IPBlockingMiddleware>(blockedIPs);
 
 // enforece cookie policy
 //app.UseCookiePolicy();
@@ -109,6 +128,9 @@ app.UseCors(options =>
     options.AllowAnyOrigin();
     options.AllowAnyMethod();
 });
+
+app.UseRateLimiter();
+
 
 //app.UseAuthentication();
 //app.UseAuthorization();
